@@ -291,6 +291,136 @@ def test_get_nonexistent_job():
     assert r.status_code == 404
 
 
+# ---------- Pilot layouts ----------
+PILOT_EXPECTED = {
+    "s4_gst_register": {
+        "ext": ".xlsx",
+        "sap_date_format": "AUTO",
+        "absolute": False,
+        "matched": 27,
+        "map": {"gstin": "Vendor GSTIN No.", "invoice_no": "Vendor Invoice No",
+                "invoice_date": "Invoice Dt", "taxable_value": "Assessable Value",
+                "igst": "IGST Amt", "cgst": "CGST Amt", "sgst": "SGST Amt"},
+    },
+    "b1_query_mdy": {
+        "ext": ".csv",
+        "sap_date_format": "MDY",
+        "absolute": False,
+        "matched": 27,
+        "map": {"gstin": "GSTIN", "invoice_no": "Vendor Ref. No.",
+                "invoice_date": "Document Date", "taxable_value": "Total Before Tax",
+                "tax_amount": "Tax Amount (LC)"},
+    },
+    "ecc_technical": {
+        "ext": ".csv",
+        "sap_date_format": "AUTO",
+        "absolute": True,
+        "matched": 27,
+        "map": {"gstin": "STCD3", "invoice_no": "XBLNR", "invoice_date": "BLDAT",
+                "taxable_value": "HWBAS", "tax_amount": "WMWST"},
+    },
+    "s4_fiori": {
+        "ext": ".xlsx",
+        "sap_date_format": "AUTO",
+        "absolute": False,
+        "matched": 27,
+        "map": {"gstin": "Tax Number 3", "invoice_no": "Reference",
+                "invoice_date": "Invoice Date", "taxable_value": "Net Amount",
+                "tax_amount": "Tax Amount"},
+    },
+}
+
+
+def test_schema_pilot_layouts():
+    r = requests.get(f"{API}/schema", timeout=15)
+    data = r.json()
+    assert "pilot_layouts" in data
+    for k in PILOT_EXPECTED:
+        assert k in data["pilot_layouts"]
+
+
+@pytest.mark.parametrize("kind", list(PILOT_EXPECTED.keys()))
+def test_pilot_layout_download(kind):
+    r = requests.get(f"{API}/demo/files/{kind}", timeout=30)
+    assert r.status_code == 200
+    assert len(r.content) > 200
+
+
+@pytest.mark.parametrize("kind", list(PILOT_EXPECTED.keys()))
+def test_pilot_auto_mapping_and_reconcile(kind):
+    exp = PILOT_EXPECTED[kind]
+    sap = requests.get(f"{API}/demo/files/{kind}", timeout=30).content
+    gst = requests.get(f"{API}/demo/files/gstr2b_xlsx", timeout=30).content
+    files = {
+        "sap_file": (f"pilot_{kind}{exp['ext']}", sap,
+                     "text/csv" if exp["ext"] == ".csv" else
+                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+        "comparison_file": ("gstr.xlsx", gst,
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+    }
+    r = requests.post(f"{API}/jobs", files=files, data={"comparison_type": "gstr2b"}, timeout=60)
+    assert r.status_code == 200, r.text
+    job = r.json()
+    created_jobs.append(job["id"])
+
+    # header_row expectation for s4_gst_register = 4 (2 title rows + 1 blank + header)
+    if kind == "s4_gst_register":
+        assert job["sap"]["header_row"] == 4, f"header_row={job['sap']['header_row']}"
+
+    sap_map = job["sap"]["suggested_mapping"]
+    for k, expected_col in exp["map"].items():
+        assert sap_map.get(k) == expected_col, \
+            f"[{kind}] field {k}: expected {expected_col!r}, got {sap_map.get(k)!r}"
+
+    # Reconcile with recommended settings
+    body = {
+        "sap_mapping": sap_map,
+        "cmp_mapping": job["comparison"]["suggested_mapping"],
+        "tolerance": 1.0,
+        "sap_date_format": exp["sap_date_format"],
+        "cmp_date_format": "AUTO",
+        "absolute_amounts": exp["absolute"],
+    }
+    r = requests.post(f"{API}/jobs/{job['id']}/reconcile", json=body, timeout=60)
+    assert r.status_code == 200, r.text
+    s = r.json()["summary"]
+    assert s["matched"] == exp["matched"], \
+        f"[{kind}] expected matched={exp['matched']}, got {s['matched']}"
+
+
+def test_pilot_ecc_without_absolute_flags_sign():
+    """ECC trailing-minus with absolute_amounts OFF => 0 matched, reasons mention sign."""
+    sap = requests.get(f"{API}/demo/files/ecc_technical", timeout=30).content
+    gst = requests.get(f"{API}/demo/files/gstr2b_xlsx", timeout=30).content
+    files = {
+        "sap_file": ("ecc.csv", sap, "text/csv"),
+        "comparison_file": ("gstr.xlsx", gst,
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+    }
+    r = requests.post(f"{API}/jobs", files=files, data={"comparison_type": "gstr2b"}, timeout=60)
+    assert r.status_code == 200
+    job = r.json()
+    created_jobs.append(job["id"])
+    body = {
+        "sap_mapping": job["sap"]["suggested_mapping"],
+        "cmp_mapping": job["comparison"]["suggested_mapping"],
+        "tolerance": 1.0,
+        "sap_date_format": "AUTO",
+        "cmp_date_format": "AUTO",
+        "absolute_amounts": False,
+    }
+    r = requests.post(f"{API}/jobs/{job['id']}/reconcile", json=body, timeout=60)
+    assert r.status_code == 200
+    s = r.json()["summary"]
+    assert s["matched"] == 0, f"expected 0 matched (sign flip), got {s['matched']}"
+    # Look at a results row for the sign hint
+    r = requests.get(f"{API}/jobs/{job['id']}/results", timeout=30)
+    rows = r.json()
+    joined = " ".join(str(row.get("reason", "")) for row in rows).lower()
+    assert "sign" in joined and "ignore amount sign" in joined, \
+        f"amount-mismatch reason should mention sign / Ignore amount sign; got: {joined[:300]}"
+
+
 def test_delete_job():
     r = requests.post(f"{API}/jobs/demo", timeout=60)
     jid = r.json()["id"]

@@ -1,0 +1,20 @@
+{
+  "summary": "Iteration 2 focused on Real Layout Pilot + light/white theme. Backend: extended pytest to 35 cases (all pass) covering (a) GET /api/schema includes pilot_layouts for all 4 kinds, (b) GET /api/demo/files/{s4_gst_register|b1_query_mdy|ecc_technical|s4_fiori} returns non-empty, (c) upload each pilot layout + GSTR-2B sample through /api/jobs - auto-mapping matches the exact expected columns per spec with ZERO manual changes (incl. s4_gst_register header_row=4), (d) /jobs/{id}/reconcile with recommended settings (AUTO/AUTO for s4_gst_register & s4_fiori; MDY for b1_query_mdy; absolute_amounts=true for ecc_technical) yields matched=27 in every case, (e) ecc_technical with absolute_amounts=false yields matched=0 and every amount_mismatch row's `reason` contains 'opposite sign ... Ignore amount sign' hint. All regression cases (37/27/3/3/1/14, tolerance=0 -> 25 matched, review PATCH, both report downloads, mapping validation, manual upload, template CRUD, job delete) still pass. Frontend (Playwright): home + light theme render correctly (white bg, dark readable text, blue accent); 4 pilot sample links present on /sap/new with data-testid sample-{kind}-link; demo flow -> MappingPanel shows sap-unrecognised-columns (5 cols) + comparison-unrecognised-columns (8 cols) chips; run reconciliation -> KPI cards show 37/27/3/3/1/14 live.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_backend.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py still uses deprecated @app.on_event('startup'/'shutdown') (noted in iteration_1, not blocking) - consider FastAPI lifespan context manager.",
+    "pilot_layouts._inr has an unreachable branch when `groups` is empty but neg path returns a double '-' concat; harmless for current data (values always have >=3 whole digits) but worth tidying.",
+    "pilot_layouts._d raises on malformed strings other than the single hard-coded '31.11.2024'; a broader try/except would be cleaner but current demo data is controlled.",
+    "Pilot layouts module has no unit tests of its own (build_layout is only exercised via the HTTP demo-download endpoint). Low risk given coverage via integration tests."
+  ],
+  "updated_files": ["/app/backend/tests/test_backend.py"],
+  "success_rate": {"backend": "100% (35/35)", "frontend": "100%"},
+  "test_credentials": "N/A - no auth",
+  "seed_data_creation": "All test-created jobs deleted at end via /api/jobs listing cleanup (remaining=0).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Pilot layouts implemented in /app/backend/pilot_layouts.py and exposed via existing /api/demo/files/{kind} endpoint (fallback after demo_data.demo_file). schema endpoint exposes them under 'pilot_layouts'. Expected auto-maps and reconcile matched=27 per layout are codified in PILOT_EXPECTED dict in test_backend.py. Result row field is `reason` (singular), not `reasons`. Light-theme classes: white bg + border-slate-200 + text-slate-800/600/500; KPI testids remain kpi-{total-records|matched|missing-gstr|mismatch|duplicates|review-required}-value."
+}

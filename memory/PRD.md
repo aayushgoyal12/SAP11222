@@ -20,6 +20,12 @@ No auth; comparison = GSTR-2B or purchase register; tolerance ₹1 default (conf
 - Demo mode + downloadable fictional samples; delete job now; audit events
 - Tested: backend 25/25, frontend flows 100%
 
+## Iteration 2 (2026-10-10) — Real Layout Pilot + light theme
+- 4 sanitized fictional SAP layouts (pilot_layouts.py): S/4 GST register, B1 query (MM/DD), ECC technical (STCD3/XBLNR/BLDAT/HWBAS/WMWST, trailing minus), S/4 Fiori (Indian digit grouping). CLI: `python backend/pilot_run.py`
+- Baseline: all 4 blocked by unrecognised columns -> aliases added; now 27/37 matched on every layout
+- "Ignore amount sign" option + opposite-sign hint; "Columns not used" chips in mapping; pilot downloads on Upload step
+- UI switched to white/light professional theme. Tested: backend 35/35, frontend 100%
+
 ## Not done / deviations
 - Frontend is JavaScript, not TypeScript; no object storage (parsed rows in MongoDB with TTL); no auth/workspaces/billing (Phase 4)
 
