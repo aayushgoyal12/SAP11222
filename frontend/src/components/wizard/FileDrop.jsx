@@ -14,7 +14,7 @@ export const FileDrop = ({ title, hint, file, onFile, accent, testId }) => {
       onDragLeave={() => setOver(false)}
       onDrop={(e) => { e.preventDefault(); setOver(false); pick(e.dataTransfer.files?.[0]); }}
       className={`relative flex min-h-[200px] cursor-pointer flex-col justify-between rounded-lg border-2 border-dashed p-5 transition-colors duration-200 ${
-        over ? "border-blue-500 bg-blue-600/10" : file ? "border-emerald-600/60 bg-emerald-500/[0.04]" : "border-slate-700 bg-slate-950/40 hover:border-slate-500"
+        over ? "border-blue-500 bg-blue-50" : file ? "border-emerald-500 bg-emerald-50/50" : "border-slate-300 bg-white hover:border-blue-400"
       }`}
     >
       <input
@@ -31,7 +31,7 @@ export const FileDrop = ({ title, hint, file, onFile, accent, testId }) => {
           <button
             data-testid={`${testId}-clear`}
             onClick={(e) => { e.stopPropagation(); onFile(null); if (ref.current) ref.current.value = ""; }}
-            className="rounded p-1 text-slate-500 hover:bg-slate-800 hover:text-white"
+            className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
           >
             <X className="h-4 w-4" />
           </button>
@@ -39,16 +39,16 @@ export const FileDrop = ({ title, hint, file, onFile, accent, testId }) => {
       </div>
       {file ? (
         <div className="flex items-center gap-3" data-testid={`${testId}-selected`}>
-          <FileSpreadsheet className="h-8 w-8 text-emerald-400" />
+          <FileSpreadsheet className="h-8 w-8 text-emerald-600" />
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-slate-100">{file.name}</div>
+            <div className="truncate text-sm font-semibold text-slate-900">{file.name}</div>
             <div className="font-data text-xs text-slate-500">{(file.size / 1024).toFixed(1)} KB</div>
           </div>
         </div>
       ) : (
-        <div className="flex flex-col items-start gap-2 text-slate-400">
+        <div className="flex flex-col items-start gap-2 text-slate-600">
           <Upload className="h-6 w-6" />
-          <span className="text-sm">Drop a CSV / XLSX here or <span className="text-blue-400 underline">browse</span></span>
+          <span className="text-sm">Drop a CSV / XLSX here or <span className="text-blue-600 underline">browse</span></span>
         </div>
       )}
       <p className="text-xs text-slate-500">{hint}</p>

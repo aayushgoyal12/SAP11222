@@ -15,7 +15,7 @@ function App() {
           <Route path="/sap/:jobId" element={<Wizard />} />
         </Routes>
       </AppShell>
-      <Toaster theme="dark" position="bottom-right" richColors />
+      <Toaster theme="light" position="bottom-right" richColors />
     </BrowserRouter>
   );
 }

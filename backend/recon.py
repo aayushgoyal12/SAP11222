@@ -18,23 +18,30 @@ DISCLAIMER = ("Review assistance only. This report flags records for human revie
 CANONICAL = [
     {"key": "gstin", "label": "Supplier GSTIN", "required": True,
      "aliases": ["gstin", "gstin of supplier", "supplier gstin", "lictradnum", "federal tax id", "gstin/uin",
-                 "vendor gstin", "gst number", "gst no", "gstin no", "tax id"]},
+                 "vendor gstin", "gst number", "gst no", "gstin no", "tax id", "vendor gstin no",
+                 "supplier gstin no", "stcd3", "tax number 3", "tax number3"]},
     {"key": "invoice_no", "label": "Invoice Number", "required": True,
      "aliases": ["invoice number", "invoice no", "numatcard", "supplier invoice no", "vendor ref no",
-                 "vendor reference", "bill no", "inv no", "invoice num", "xblnr", "reference"]},
+                 "vendor reference", "bill no", "inv no", "invoice num", "xblnr", "vendor invoice no",
+                 "supplier invoice id", "vendor ref no.", "reference"]},
     {"key": "invoice_date", "label": "Invoice Date", "required": True,
-     "aliases": ["invoice date", "taxdate", "document date", "bill date", "inv date", "bldat", "doc date"]},
+     "aliases": ["invoice date", "taxdate", "document date", "bill date", "inv date", "bldat", "invoice dt",
+                 "inv dt", "bill dt", "doc date"]},
     {"key": "taxable_value", "label": "Taxable Value", "required": True,
-     "aliases": ["taxable value", "taxable amount", "baseamount", "base amount", "assessable value", "taxable amt"]},
+     "aliases": ["taxable value", "taxable amount", "baseamount", "base amount", "assessable value", "taxable amt",
+                 "total before tax", "hwbas", "fwbas", "tax base amount", "base value", "net amount"]},
     {"key": "tax_amount", "label": "Total Tax Amount", "required": False,
-     "aliases": ["tax amount", "vatsum", "total tax", "total tax amount", "gst amount", "tax amt"]},
-    {"key": "igst", "label": "IGST", "required": False, "aliases": ["igst", "integrated tax", "igst amount"]},
-    {"key": "cgst", "label": "CGST", "required": False, "aliases": ["cgst", "central tax", "cgst amount"]},
+     "aliases": ["tax amount", "vatsum", "total tax", "total tax amount", "gst amount", "tax amt", "wmwst",
+                 "hwste", "fwste", "tax amount (lc)", "tax amount lc"]},
+    {"key": "igst", "label": "IGST", "required": False,
+     "aliases": ["igst", "integrated tax", "igst amount", "igst amt"]},
+    {"key": "cgst", "label": "CGST", "required": False,
+     "aliases": ["cgst", "central tax", "cgst amount", "cgst amt"]},
     {"key": "sgst", "label": "SGST / UTGST", "required": False,
-     "aliases": ["sgst", "state/ut tax", "state tax", "utgst", "sgst amount"]},
+     "aliases": ["sgst", "state/ut tax", "state tax", "utgst", "sgst amount", "sgst amt", "utgst amt"]},
     {"key": "vendor_name", "label": "Vendor Name", "required": False,
      "aliases": ["cardname", "vendor name", "supplier name", "trade/legal name", "trade name", "legal name",
-                 "party name", "name1"]},
+                 "party name", "name1", "bp name", "invoicing party name", "supplier name 1"]},
 ]
 LABELS = {f["key"]: f["label"] for f in CANONICAL}
 DATE_MODES = {
@@ -229,7 +236,7 @@ def _amount(raw):
     return round(-v if neg else v, 2), None
 
 
-def normalize_side(columns, rows, row_nums, mapping, date_mode):
+def normalize_side(columns, rows, row_nums, mapping, date_mode, absolute=False):
     idx = {k: columns.index(c) for k, c in mapping.items() if c and c in columns}
     out = []
     for r, rn in zip(rows, row_nums):
@@ -272,6 +279,9 @@ def normalize_side(columns, rows, row_nums, mapping, date_mode):
                     elif v is not None:
                         parts.append(v)
             tax = round(sum(parts), 2)
+        if absolute:
+            taxable = abs(taxable) if taxable is not None else None
+            tax = abs(tax) if tax is not None else None
         out.append({"row": rn, "gstin": gstin, "inv": inv, "inv_raw": inv_raw, "date": d, "date_raw": d_raw,
                     "taxable": taxable, "tax": tax, "vendor": get("vendor_name"), "errors": errors})
     return out
@@ -304,8 +314,8 @@ def _money(v):
     return f"₹{v:,.2f}"
 
 
-def reconcile(sap, cmp, sap_map, cmp_map, tol, sap_mode, cmp_mode, cmp_label):
-    S = normalize_side(sap["columns"], sap["rows"], sap["row_nums"], sap_map, sap_mode)
+def reconcile(sap, cmp, sap_map, cmp_map, tol, sap_mode, cmp_mode, cmp_label, absolute=False):
+    S = normalize_side(sap["columns"], sap["rows"], sap["row_nums"], sap_map, sap_mode, absolute)
     C = normalize_side(cmp["columns"], cmp["rows"], cmp["row_nums"], cmp_map, cmp_mode)
     results = []
 
@@ -351,6 +361,8 @@ def reconcile(sap, cmp, sap_map, cmp_map, tol, sap_mode, cmp_mode, cmp_label):
         if abs(dx) > tol:
             issues.append(f"Tax amount differs by {_money(dx)} (tolerance {_money(tol)})")
         date_gap = (s["date"] - c["date"]).days
+        if issues and s["taxable"] == -c["taxable"] and s["tax"] == -c["tax"]:
+            issues.append("SAP amounts carry the opposite sign (credit-side export) - enable 'Ignore amount sign'")
         if issues:
             if date_gap:
                 issues.append(f"invoice date also differs by {abs(date_gap)} day(s)")
@@ -399,6 +411,8 @@ def reconcile(sap, cmp, sap_map, cmp_map, tol, sap_mode, cmp_mode, cmp_label):
         "Duplicates: the first occurrence is reconciled; later occurrences are flagged for review.",
         "Cess, place of supply, reverse charge and ITC eligibility are not evaluated.",
     ]
+    if absolute:
+        assumptions.append("Amount signs ignored: SAP and comparison amounts compared as absolute values.")
     for label, m in (("SAP", sap_map), (cmp_label, cmp_map)):
         if not m.get("tax_amount"):
             assumptions.append(f"{label} tax amount computed as IGST + CGST + SGST (blank components treated as 0).")

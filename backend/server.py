@@ -15,6 +15,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 import recon
 import demo_data
+import pilot_layouts
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -102,6 +103,7 @@ class ReconcileRequest(BaseModel):
     tolerance: float = Field(1.0, ge=0, le=1000000)
     sap_date_format: str = Field("AUTO", pattern="^(AUTO|DMY|MDY|YMD)$")
     cmp_date_format: str = Field("AUTO", pattern="^(AUTO|DMY|MDY|YMD)$")
+    absolute_amounts: bool = False
 
 
 class ReviewUpdate(BaseModel):
@@ -155,12 +157,12 @@ async def root():
 @api.get("/schema")
 async def schema():
     return {"fields": [{k: f[k] for k in ("key", "label", "required", "aliases")} for f in recon.CANONICAL],
-            "date_formats": recon.DATE_MODES, "retention_days": RETENTION_DAYS, "disclaimer": recon.DISCLAIMER}
+            "date_formats": recon.DATE_MODES, "pilot_layouts": pilot_layouts.LAYOUTS, "retention_days": RETENTION_DAYS, "disclaimer": recon.DISCLAIMER}
 
 
 @api.get("/demo/files/{kind}")
 async def demo_download(kind: str):
-    out = demo_data.demo_file(kind)
+    out = demo_data.demo_file(kind) or pilot_layouts.build_layout(kind)
     if not out:
         raise HTTPException(404, "Unknown demo file")
     content, filename, mime = out
@@ -208,13 +210,13 @@ async def run_reconcile(job_id: str, req: ReconcileRequest):
     started = now()
     results, summary, assumptions = recon.reconcile(files["sap"], files["comparison"], req.sap_mapping,
                                                     req.cmp_mapping, req.tolerance, req.sap_date_format,
-                                                    req.cmp_date_format, label)
+                                                    req.cmp_date_format, label, req.absolute_amounts)
     summary["processing_ms"] = int((now() - started).total_seconds() * 1000)
     await db.job_results.delete_many({"job_id": job_id})
     if results:
         await db.job_results.insert_many([{**r, "job_id": job_id, "expires_at": job.expires_at} for r in results])
     settings = {"tolerance": req.tolerance, "sap_date_format": req.sap_date_format,
-                "cmp_date_format": req.cmp_date_format}
+                "cmp_date_format": req.cmp_date_format, "absolute_amounts": req.absolute_amounts}
     await db.jobs.update_one({"_id": job_id}, {
         "$set": {"status": "reconciled", "mapping": {"sap": req.sap_mapping, "comparison": req.cmp_mapping},
                  "settings": settings, "summary": summary, "assumptions": assumptions},
