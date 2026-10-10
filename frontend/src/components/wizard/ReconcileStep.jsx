@@ -8,9 +8,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { api, errMsg } from "@/lib/api";
 import { cmpLabel } from "@/lib/status";
 
-const DateSelect = ({ label, value, onChange, formats, testId }) => (
+const DateSelect = ({ label, value, onChange, formats, testId, detect }) => (
   <div>
-    <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-500">{label}</label>
+    <label className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-slate-500">
+      {label}
+      {detect && detect !== "AUTO" && (
+        <span data-testid={`${testId}-detected`} className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold normal-case tracking-normal text-emerald-700">
+          auto-detected {detect}
+        </span>
+      )}
+    </label>
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger data-testid={testId} className="border-slate-300 bg-white"><SelectValue /></SelectTrigger>
       <SelectContent>
@@ -23,9 +30,9 @@ const DateSelect = ({ label, value, onChange, formats, testId }) => (
 export const ReconcileStep = ({ job, schema, mapping, onBack, onDone }) => {
   const s = job.settings || {};
   const [tol, setTol] = useState(String(s.tolerance ?? 1));
-  const [sapFmt, setSapFmt] = useState(s.sap_date_format || "AUTO");
-  const [cmpFmt, setCmpFmt] = useState(s.cmp_date_format || "AUTO");
-  const [abs, setAbs] = useState(!!s.absolute_amounts);
+  const [sapFmt, setSapFmt] = useState(s.sap_date_format || job.sap.suggested_date_format || "AUTO");
+  const [cmpFmt, setCmpFmt] = useState(s.cmp_date_format || job.comparison.suggested_date_format || "AUTO");
+  const [abs, setAbs] = useState(s.absolute_amounts !== undefined ? s.absolute_amounts : !!job.sap.suggested_absolute);
   const [busy, setBusy] = useState(false);
   const label = cmpLabel(job.comparison_type);
   const tolNum = Number(tol);
@@ -67,14 +74,17 @@ export const ReconcileStep = ({ job, schema, mapping, onBack, onDone }) => {
           <p className="mt-1.5 text-xs text-slate-500">Differences up to this amount on taxable value or tax are treated as rounding and noted, not flagged.</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <DateSelect label="SAP date format" value={sapFmt} onChange={setSapFmt} formats={schema.date_formats} testId="sap-date-format-select" />
-          <DateSelect label={`${label} date format`} value={cmpFmt} onChange={setCmpFmt} formats={schema.date_formats} testId="cmp-date-format-select" />
+          <DateSelect label="SAP date format" value={sapFmt} onChange={setSapFmt} formats={schema.date_formats} testId="sap-date-format-select" detect={!s.sap_date_format ? job.sap.suggested_date_format : null} />
+          <DateSelect label={`${label} date format`} value={cmpFmt} onChange={setCmpFmt} formats={schema.date_formats} testId="cmp-date-format-select" detect={!s.cmp_date_format ? job.comparison.suggested_date_format : null} />
         </div>
         <label className="flex items-start gap-3 rounded-md border border-slate-200 bg-slate-50 p-3">
           <Switch data-testid="ignore-sign-toggle" checked={abs} onCheckedChange={setAbs} className="mt-0.5" />
           <span>
             <span className="block text-sm font-medium text-slate-800">Ignore amount sign</span>
             <span className="text-xs text-slate-500">Turn on for ECC / S/4 line-item exports where vendor amounts are negative (credit side, e.g. 1,234.56-).</span>
+            {job.sap.suggested_absolute && (
+              <span data-testid="ignore-sign-detected" className="mt-1 inline-block rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">auto-detected: SAP amounts look negative</span>
+            )}
           </span>
         </label>
         <div className="flex justify-between border-t border-slate-200 pt-5">

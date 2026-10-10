@@ -65,6 +65,8 @@ class FileMeta(BaseModel):
     preview: List[List[str]]
     suggested_mapping: Dict[str, Optional[str]]
     confidence: Dict[str, str]
+    suggested_date_format: Optional[str] = None
+    suggested_absolute: Optional[bool] = None
 
 
 class Job(BaseDocument):
@@ -113,8 +115,14 @@ class ReviewUpdate(BaseModel):
 
 def file_meta(filename, t):
     mapping, conf = recon.auto_map(t["columns"])
-    return FileMeta(filename=filename, sheet=t["sheet"], header_row=t["header_row"], columns=t["columns"],
+    meta = FileMeta(filename=filename, sheet=t["sheet"], header_row=t["header_row"], columns=t["columns"],
                     row_count=len(t["rows"]), preview=t["rows"][:5], suggested_mapping=mapping, confidence=conf)
+    idx = {k: t["columns"].index(c) for k, c in mapping.items() if c}
+    if "invoice_date" in idx:
+        meta.suggested_date_format = recon.detect_date_format([r[idx["invoice_date"]] for r in t["rows"][:200]])
+    if "taxable_value" in idx:
+        meta.suggested_absolute = recon.detect_negative_amounts([r[idx["taxable_value"]] for r in t["rows"]])
+    return meta
 
 
 async def get_job(job_id) -> Job:

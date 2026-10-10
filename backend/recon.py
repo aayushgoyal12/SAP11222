@@ -201,6 +201,41 @@ def validate_mapping(mapping, columns, side_label):
     return errors
 
 
+def detect_date_format(values):
+    votes = {"DMY": 0, "MDY": 0}
+    for raw in values:
+        s = (raw or "").strip()
+        if not s:
+            continue
+        if re.match(r"^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}$", s) or re.match(r"^\d{8}$", s):
+            return "YMD"
+        if re.match(r"^\d{1,2}[-/ ]?[A-Za-z]{3}[-/ ]?\d", s):
+            votes["DMY"] += 1
+            continue
+        if re.match(r"^[A-Za-z]{3}[-/ ]?\d{1,2}", s):
+            votes["MDY"] += 1
+            continue
+        m = re.match(r"^(\d{1,2})[-/.](\d{1,2})[-/.]\d{2,4}$", s)
+        if m:
+            a, b = int(m.group(1)), int(m.group(2))
+            if a > 12 >= b:
+                votes["DMY"] += 1
+            elif b > 12 >= a:
+                votes["MDY"] += 1
+    if votes["DMY"] and not votes["MDY"]:
+        return "DMY"
+    if votes["MDY"] and not votes["DMY"]:
+        return "MDY"
+    return "AUTO"
+
+
+def detect_negative_amounts(values):
+    vals = [v for v in (_amount(x) for x in values[:500]) if v[0] is not None]
+    if not vals:
+        return False
+    return sum(1 for v, _ in vals if v < 0) / len(vals) >= 0.8
+
+
 def norm_inv(s):
     return re.sub(r"[^A-Z0-9]", "", (s or "").upper()).lstrip("0")
 
