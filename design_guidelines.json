@@ -1,0 +1,161 @@
+{
+  "project_name": "SAP Finance Export Reconciliation MVP",
+  "app_type": "dashboard / saas_app",
+  "archetype": "SWISS & TACTICAL ENTERPRISE FINANCE (Precision, High-Contrast, Data-Dense)",
+  "emotional_tone": "Authoritative, bulletproof, highly focused finance operations control tower",
+  "disclaimer_text": "Disclaimer: This tool provides automated review assistance and exception flagging only. It is not formal tax advice and does not perform automatic posting to SAP or GST portals.",
+
+  "typography": {
+    "font_family_heading": "'Cabinet Grotesk', 'Plus Jakarta Sans', sans-serif",
+    "font_family_body": "'Plus Jakarta Sans', sans-serif",
+    "font_family_tabular_data": "'JetBrains Mono', 'IBM Plex Mono', monospace",
+    "font_pairing_strategy": "Precision Display Sans (Headings) + Clean Humanist Sans (Body) + Crisp Monospace (GSTINs, Invoices, Amounts, Discrepancies)",
+    "scale": {
+      "h1": "text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight",
+      "h2": "text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight",
+      "h3": "text-lg sm:text-xl font-semibold tracking-normal",
+      "card_header": "text-sm sm:text-base font-semibold uppercase tracking-wider text-slate-400",
+      "body": "text-sm sm:text-base leading-relaxed",
+      "tabular": "font-mono text-xs sm:text-sm tracking-tight",
+      "badge": "text-xs font-medium uppercase tracking-wider"
+    }
+  },
+
+  "colors": {
+    "theme_mode": "Dark-first with ultra-high contrast dark slate background (#080C14) and crisp light theme support toggle",
+    "base_dark": {
+      "bg_app": "#080C14",
+      "bg_card": "#0F172A",
+      "bg_card_hover": "#1E293B",
+      "bg_surface_elevated": "#182238",
+      "border_subtle": "#1E293B",
+      "border_highlight": "#334155",
+      "text_primary": "#F8FAFC",
+      "text_secondary": "#94A3B8",
+      "text_muted": "#64748B"
+    },
+    "brand_accents": {
+      "primary": "#2563EB",
+      "primary_hover": "#1D4ED8",
+      "primary_light": "rgba(37, 99, 235, 0.15)",
+      "sap_gold": "#F59E0B",
+      "gst_teal": "#0EA5E9"
+    },
+    "status_indicators": {
+      "matched": {
+        "bg": "rgba(16, 185, 129, 0.12)",
+        "border": "#059669",
+        "text": "#10B981",
+        "label": "MATCHED"
+      },
+      "missing_gstr2b": {
+        "bg": "rgba(239, 68, 68, 0.12)",
+        "border": "#DC2626",
+        "text": "#F87171",
+        "label": "MISSING IN GSTR-2B"
+      },
+      "missing_sap": {
+        "bg": "rgba(245, 158, 11, 0.12)",
+        "border": "#D97706",
+        "text": "#FBBF24",
+        "label": "MISSING IN SAP"
+      },
+      "amount_mismatch": {
+        "bg": "rgba(168, 85, 247, 0.12)",
+        "border": "#9333EA",
+        "text": "#C084FC",
+        "label": "AMOUNT MISMATCH"
+      },
+      "duplicate": {
+        "bg": "rgba(236, 72, 153, 0.12)",
+        "border": "#DB2777",
+        "text": "#F472B6",
+        "label": "DUPLICATE RECORD"
+      },
+      "invalid": {
+        "bg": "rgba(100, 116, 139, 0.2)",
+        "border": "#475569",
+        "text": "#94A3B8",
+        "label": "INVALID FORMAT"
+      }
+    }
+  },
+
+  "layout_and_grid": {
+    "dashboard_grid": "MODE B: High Density Finance Grid (grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 sm:gap-6)",
+    "kpi_cards_layout": "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6",
+    "stepper_wizard": "5-Step sequential progress header (1. Upload Files -> 2. Map Columns -> 3. Match Settings -> 4. Review Exceptions -> 5. Export Report)",
+    "table_layout": "Dense tabular layout with fixed headers, sticky column actions, sorting, pagination, multi-filter pill row, and row highlight on hover"
+  },
+
+  "key_components": [
+    {
+      "name": "Header & Mode Selector",
+      "description": "Top sticky bar with SAP Finance Recon badge, demo dataset toggle, light/dark switch, recent jobs dropdown, and explicit disclaimer tooltip",
+      "test_ids": ["app-header", "mode-selector-dropdown", "demo-data-button", "disclaimer-banner"]
+    },
+    {
+      "name": "Stepper Wizard Progress",
+      "description": "Visual 5-step progress pill bar displaying current step (Upload, Map, Reconcile, Review, Export) with interactive back/next actions",
+      "test_ids": ["wizard-stepper", "step-upload-tab", "step-map-tab", "step-reconcile-tab", "step-review-tab", "step-export-tab"]
+    },
+    {
+      "name": "Dual File Dropzones (SAP & GSTR-2B)",
+      "description": "Side-by-side dropzones for SAP Export File (CSV/XLSX) and GSTR-2B Purchase Register file, with drag-and-drop, sample template download, and parsed summary preview",
+      "test_ids": ["sap-file-dropzone", "gstr2b-file-dropzone", "sap-file-input", "gstr2b-file-input", "load-demo-sap-btn", "load-demo-gstr-btn"]
+    },
+    {
+      "name": "Smart Column Mapping Engine",
+      "description": "Interactive table mapping SAP and GSTR-2B columns to standard schema (GSTIN, Invoice No, Invoice Date, Taxable Value, Tax Amount, Vendor Name) with auto-alias detection confidence badges (High/Medium/Manual)",
+      "test_ids": ["column-mapping-table", "map-gstin-select", "map-inv-no-select", "map-date-select", "map-taxable-select", "map-tax-select", "map-vendor-select", "auto-map-button"]
+    },
+    {
+      "name": "Matching Engine Configuration",
+      "description": "Settings panel for Amount Tolerance (₹0.00, ₹1.00, ₹10.00, custom ₹), Date Format parser, Fuzzy Invoice Number matching toggle, and GSTIN casing normalizer",
+      "test_ids": ["amount-tolerance-input", "date-format-select", "fuzzy-match-toggle", "run-reconciliation-btn"]
+    },
+    {
+      "name": "KPI Summary Dashboard Cards",
+      "description": "6 High-impact KPI tiles: Total Records, Matched (Green), Missing in GSTR-2B (Red), Amount Mismatches (Purple), Duplicates (Pink), Records Requiring Review (Amber)",
+      "test_ids": ["kpi-total-records", "kpi-matched", "kpi-missing-gstr", "kpi-missing-sap", "kpi-mismatch", "kpi-review-required"]
+    },
+    {
+      "name": "Exception Review Queue & Line-Item Inspector",
+      "description": "Filterable, searchable data grid showing source value vs comparison value, calculated variance, status badge, flagged reason description, and row detail drawer",
+      "test_ids": ["review-table-search", "status-filter-dropdown", "exception-table-row", "row-detail-modal", "resolve-flag-btn"]
+    },
+    {
+      "name": "Export & Audit Summary Section",
+      "description": "Excel/CSV export generator with options for Full Reconciliation Report, Exception-Only Report, and Audit Log CSV summary",
+      "test_ids": ["export-full-excel-btn", "export-exceptions-excel-btn", "export-summary-pdf-btn"]
+    }
+  ],
+
+  "image_urls": [
+    {
+      "category": "avatars",
+      "url": "https://images.unsplash.com/photo-1560250097-0b93528c311a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTJ8MHwxfHNlYXJjaHwxfHxmaW5hbmNpYWwlMjB0YXglMjBhbmFseXN0JTIwYXZhdGFyJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzkxNjQ3NzQ1fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Senior Tax & Finance Operations Specialist Avatar"
+    },
+    {
+      "category": "avatars",
+      "url": "https://images.unsplash.com/photo-1607746882042-944635dfe10e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTJ8MHwxfHNlYXJjaHwyfHxmaW5hbmNpYWwlMjB0YXglMjBhbmFseXN0JTIwYXZhdGFyJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzkxNjQ3NzQ1fDA&ixlib=rb-4.1.0&q=85",
+      "description": "GST Auditor Avatar"
+    }
+  ],
+
+  "motion_and_interactions": {
+    "hover_states": "All cards scale slightly with border glow transition (transition: border-color 0.2s ease, box-shadow 0.2s ease). Explicit text colors set on hover.",
+    "button_microinteractions": "Active state scale-95, shadow-lg glow effect on primary action buttons.",
+    "progress_animations": "Smooth progress bar fill when matching engine runs (Framer motion or Tailwind transition).",
+    "accessibility": "Respect prefers-reduced-motion; high contrast APCA compliant badges and text."
+  },
+
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": {
+    "data_testid": "MANDATORY on every single interactive element, select dropdown option, input field, modal, button, tab, and card.",
+    "hover_contrast": "ALWAYS explicitly define hover text colors (e.g., hover:bg-slate-800 hover:text-white). NEVER rely on transparent text inheritance.",
+    "disclaimer_banner": "MUST render prominent disclaimer banner stating 'Review assistance only - Not tax advice or automatic SAP posting'.",
+    "fictional_demo_mode": "Provide 'Load Demo SAP & GSTR-2B Data' button so evaluators can instantly test complete flow without uploading files.",
+    "icons": "Use lucide-react icons exclusively (FileSpreadsheet, CheckCircle2, AlertTriangle, ArrowRight, Upload, RefreshCw, Download, Sliders, ShieldAlert, FileText, Search, Filter)."
+  }
+}
