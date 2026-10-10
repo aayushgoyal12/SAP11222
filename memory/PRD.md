@@ -26,6 +26,11 @@ No auth; comparison = GSTR-2B or purchase register; tolerance ₹1 default (conf
 - "Ignore amount sign" option + opposite-sign hint; "Columns not used" chips in mapping; pilot downloads on Upload step
 - UI switched to white/light professional theme. Tested: backend 35/35, frontend 100%
 
+## Iteration 3 (2026-10-10) — Auto format detect
+- After upload, app auto-detects date format (YMD/DMY/MDY via sampling; ambiguous stays AUTO) and negative-amount sign (>=80% negative on taxable column)
+- FileMeta carries suggested_date_format/suggested_absolute; Reconcile step pre-fills + shows "auto-detected" badges; saved settings win on re-run
+- All 4 pilot layouts now reconcile with zero manual setting changes. Tested: backend 44/44, frontend 3/3
+
 ## Not done / deviations
 - Frontend is JavaScript, not TypeScript; no object storage (parsed rows in MongoDB with TTL); no auth/workspaces/billing (Phase 4)
 

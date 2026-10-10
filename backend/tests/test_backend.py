@@ -428,3 +428,81 @@ def test_delete_job():
     assert r.status_code == 200
     r = requests.get(f"{API}/jobs/{jid}", timeout=15)
     assert r.status_code == 404
+
+
+
+# ---------- Auto-detect date format & sign (iteration 3) ----------
+AUTO_DETECT_EXPECTED = {
+    "s4_gst_register": {"ext": ".xlsx", "suggested_date_format": "DMY", "suggested_absolute": False},
+    "b1_query_mdy":    {"ext": ".csv",  "suggested_date_format": "MDY", "suggested_absolute": False},
+    "ecc_technical":   {"ext": ".csv",  "suggested_date_format": "YMD", "suggested_absolute": True},
+    "s4_fiori":        {"ext": ".xlsx", "suggested_date_format": "DMY", "suggested_absolute": False},
+}
+
+
+@pytest.mark.parametrize("kind", list(AUTO_DETECT_EXPECTED.keys()))
+def test_pilot_suggested_date_format_and_absolute(kind):
+    exp = AUTO_DETECT_EXPECTED[kind]
+    sap = requests.get(f"{API}/demo/files/{kind}", timeout=30).content
+    gst = requests.get(f"{API}/demo/files/gstr2b_xlsx", timeout=30).content
+    files = {
+        "sap_file": (f"pilot_{kind}{exp['ext']}", sap,
+                     "text/csv" if exp["ext"] == ".csv" else
+                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+        "comparison_file": ("gstr.xlsx", gst,
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+    }
+    r = requests.post(f"{API}/jobs", files=files, data={"comparison_type": "gstr2b"}, timeout=60)
+    assert r.status_code == 200, r.text
+    job = r.json()
+    created_jobs.append(job["id"])
+    sap_meta = job["sap"]
+    assert sap_meta.get("suggested_date_format") == exp["suggested_date_format"], \
+        f"[{kind}] date fmt expected {exp['suggested_date_format']}, got {sap_meta.get('suggested_date_format')}"
+    assert bool(sap_meta.get("suggested_absolute")) == exp["suggested_absolute"], \
+        f"[{kind}] absolute expected {exp['suggested_absolute']}, got {sap_meta.get('suggested_absolute')}"
+    # GSTR-2B side should suggest DMY
+    assert job["comparison"].get("suggested_date_format") == "DMY", \
+        f"[{kind}] GSTR-2B side suggested_date_format={job['comparison'].get('suggested_date_format')}"
+
+
+def test_demo_sap_csv_suggested_dmy():
+    r = requests.post(f"{API}/jobs/demo", timeout=60)
+    assert r.status_code == 200
+    job = r.json()
+    created_jobs.append(job["id"])
+    assert job["sap"].get("suggested_date_format") == "DMY", \
+        f"demo sap_csv suggested fmt = {job['sap'].get('suggested_date_format')}"
+    assert job["comparison"].get("suggested_date_format") == "DMY"
+    assert bool(job["sap"].get("suggested_absolute")) is False
+
+
+@pytest.mark.parametrize("kind", list(AUTO_DETECT_EXPECTED.keys()))
+def test_pilot_full_auto_reconcile_uses_suggestions(kind):
+    """Simulate user clicking Run without changing anything: use SUGGESTED values."""
+    exp = AUTO_DETECT_EXPECTED[kind]
+    sap = requests.get(f"{API}/demo/files/{kind}", timeout=30).content
+    gst = requests.get(f"{API}/demo/files/gstr2b_xlsx", timeout=30).content
+    files = {
+        "sap_file": (f"pilot_{kind}{exp['ext']}", sap,
+                     "text/csv" if exp["ext"] == ".csv" else
+                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+        "comparison_file": ("gstr.xlsx", gst,
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+    }
+    r = requests.post(f"{API}/jobs", files=files, data={"comparison_type": "gstr2b"}, timeout=60)
+    assert r.status_code == 200
+    job = r.json()
+    created_jobs.append(job["id"])
+    body = {
+        "sap_mapping": job["sap"]["suggested_mapping"],
+        "cmp_mapping": job["comparison"]["suggested_mapping"],
+        "tolerance": 1.0,
+        "sap_date_format": job["sap"].get("suggested_date_format") or "AUTO",
+        "cmp_date_format": job["comparison"].get("suggested_date_format") or "AUTO",
+        "absolute_amounts": bool(job["sap"].get("suggested_absolute")),
+    }
+    r = requests.post(f"{API}/jobs/{job['id']}/reconcile", json=body, timeout=60)
+    assert r.status_code == 200, r.text
+    s = r.json()["summary"]
+    assert s["matched"] == 27, f"[{kind}] auto-only matched={s['matched']}"
