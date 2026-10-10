@@ -1,0 +1,20 @@
+{
+  "summary": "End-to-end test of SAP Export Reconciliation MVP. Backend: 25/25 pytest cases passed covering schema, demo file downloads, demo job auto-mapping (SAP gstin->LicTradNum, GSTR IGST/CGST/SGST mapped, tax_amount intentionally null), header detection on GSTR-2B B2B sheet (header_row=4), full reconcile KPIs (37/27/3/3/1/14), tolerance=0 shift (matched 25, amount_mismatch 5), review PATCH persistence, both report downloads (full+exceptions xlsx), mapping validation (missing required / missing tax), manual upload (CSV+XLSX, purchase_register), error handling (unsupported type, empty file, bad comparison_type), templates CRUD, jobs CRUD. Frontend (Playwright): home card/demo/disclaimer/recent jobs render, demo flow -> map step auto-populated correctly, reconcile button runs and all 6 KPI cards show expected values, filter-amount_mismatch pill filters, row-detail modal opens, review note saves and persists after reload, export URLs contain kind=exceptions|full and proper /api/jobs/{id}/report path, delete-job-btn confirms, tolerance=0 flow yields matched=25 live in UI. Created jobs/templates were deleted at end.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_backend.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "KpiCards keys ('total-records','missing-gstr','mismatch','review-required') differ from the names referenced in the review request ('kpi-total-value','kpi-missing_in_gstr2b-value', etc.). All values rendered correctly, but if external tests/docs assume underscore naming they will fail. Consider aligning or documenting.",
+    "server.py uses deprecated FastAPI @app.on_event('startup'/'shutdown') - works but should migrate to lifespan context manager.",
+    "build_report uses datetime.utcnow() (deprecated in Py 3.12) - prefer datetime.now(timezone.utc).",
+    "Delete job uses window.confirm (ExportStep) rather than shadcn AlertDialog - works but inconsistent with dark UI."
+  ],
+  "updated_files": ["/app/backend/tests/test_backend.py", "/app/backend/tests/__init__.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "N/A - no auth",
+  "seed_data_creation": "Only demo jobs/templates created via API during tests; all cleaned up (0 jobs, 0 templates remaining).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 10 feature groups in review_request verified end-to-end. KPI data-testids are kpi-{total-records|matched|missing-gstr|mismatch|duplicates|review-required}-value (hyphenated, not underscored). Filter pills follow filter-{all|matched|missing_in_comparison|missing_in_sap|amount_mismatch|date_mismatch|duplicate|invalid|exceptions} (lowercased status key). Backend test suite is reusable."
+}
